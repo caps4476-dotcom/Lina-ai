@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Lina · Echte KI · v2</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; background: #0a0c15; color: #eeedff; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { display: flex; flex-direction: column; }
+
+        .key-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .key-overlay.active { display: flex; }
+        .key-box {
+            background: #1a1d2e;
+            border: 1px solid #2c2f44;
+            border-radius: 16px;
+            padding: 28px 24px;
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .key-box h2 { font-size: 1.1rem; color: #eeedff; }
+        .key-box p { font-size: 0.85rem; color: #8f8eb3; line-height: 1.5; }
+        .key-box input {
+            background: #05060c;
+            border: 1px solid #333753;
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: white;
+            font-size: 0.9rem;
+            outline: none;
+            width: 100%;
+        }
+        .key-box button {
+            background: #10b981;
+            border: none;
+            border-radius: 10px;
+            padding: 13px;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .key-box .reset-link {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #555;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .header {
+            background: #1a1d2e;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2c2f44;
+            flex-shrink: 0;
+        }
+        .logo h1 { font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+        .badge { background: #10b981; font-size: 0.65rem; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; }
+
+        .status-bar {
+            background: #0f111a;
+            padding: 4px 16px;
+            font-size: 0.7rem;
+            color: #8f8eb3;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #1a1d2e;
+        }
+        .api-status.ok { color: #10b981; }
+        .api-status.error { color: #ef4444; }
+
+        .chat-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+        .msg { max-width: 90%; padding: 12px 16px; border-radius: 16px; line-height: 1.5; font-size: 0.95rem; }
+        .user { background: #2b6e4f; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .bot { background: #1e2235; align-self: flex-start; border-bottom-left-radius: 2px; border: 1px solid #2c2f44; }
+
+        .bot-content pre { background: #0d0f18; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 10px 0; border: 1px solid #333; }
+        .bot-content code { font-family: 'Consolas', monospace; font-size: 0.85rem; }
+        .bot-content p { margin-bottom: 8px; }
+        .bot-content ul { margin-left: 20px; margin-bottom: 8px; }
+
+        .attachment-tag { margin-top: 8px; padding: 4px 8px; background: rgba(0,0,0,0.2); border-radius: 6px; font-size: 0.75rem; border: 1px dashed #444; display: inline-block; }
+
+        .input-area { background: #12141f; padding: 12px; display: flex; gap: 8px; border-top: 1px solid #222436; align-items: center; }
+        .input-area input { flex: 1; background: #05060c; border: 1px solid #333753; border-radius: 24px; padding: 12px 16px; color: white; outline: none; }
+        .btn { border: none; border-radius: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .send-btn { background: #10b981; width: 44px; height: 44px; font-size: 1.2rem; }
+        .attach-btn { background: #3b82f6; width: 44px; height: 44px; font-size: 1.2rem; }
+        .clear-btn { background: #333; padding: 0 12px; height: 44px; color: #888; border-radius: 12px; }
+
+        .editor-container { display: none; flex-direction: column; background: #0d0f18; border-top: 2px solid #3b82f6; height: 45%; }
+        .editor-container.open { display: flex; }
+        .editor-header { background: #1a1d2e; padding: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+        .editor-header button { background: #3b82f6; border: none; color: white; padding: 4px 12px; border-radius: 4px; cursor: pointer; }
+        textarea { flex: 1; background: #07080f; color: #e3e3ff; border: none; padding: 12px; font-family: monospace; resize: none; outline: none; }
+        iframe { background: white; border: none; width: 100%; height: 120px; }
+
+        .typing { font-size: 0.8rem; color: #8f8eb3; padding: 0 16px 8px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="key-overlay" id="keyOverlay">
+        <div class="key-box">
+            <h2>🔑 API-Key eingeben</h2>
+            <p>Gib hier deinen Google Gemini API-Key ein. Er wird nur in deinem Browser gespeichert und ist fuer niemanden sonst sichtbar. Im GitHub Code taucht er nicht auf.</p>
+            <input type="password" id="keyInput" placeholder="AIzaSy...">
+            <button id="saveKeyBtn">Speichern und loslegen</button>
+            <span class="reset-link" id="resetKeyLink">Key vergessen / zuruecksetzen</span>
+        </div>
+    </div>
+
+    <div class="header">
+        <div class="logo"><h1>🤖 Lina AI <span class="badge">v2.0</span></h1></div>
+        <button id="toggleEditorBtn" style="background:none; border:1px solid #444; color:#aaa; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.7rem;">Vorschau/Editor</button>
+    </div>
+
+    <div class="status-bar">
+        <span>GitHub Modus</span>
+        <span id="apiStatus" class="api-status">Pruefe Key...</span>
+    </div>
+
+    <div class="chat-container">
+        <div class="messages" id="chatBox"></div>
+        <div id="typingIndicator" class="typing">Lina schreibt...</div>
+
+        <div class="input-area">
+            <button id="attachBtn" class="btn attach-btn">📎</button>
+            <input type="text" id="userInput" placeholder="Frage Lina..." autocomplete="off">
+            <button id="sendBtn" class="btn send-btn">➤</button>
+            <button id="clearChatBtn" class="clear-btn">🗑️</button>
+        </div>
+        <input type="file" id="fileAttachment" style="display:none" accept=".html,.txt,.css,.js,.json">
+    </div>
+
+    <div class="editor-container" id="editorContainer">
+        <div class="editor-header">
+            <span>Live Vorschau</span>
+            <button id="applyBtn">Aktualisieren</button>
+        </div>
+        <textarea id="codeEditor" placeholder="Code hier einfuegen..."></textarea>
+        <iframe id="previewFrame"></iframe>
+    </div>
+
+    <script>
+        var API_KEY = localStorage.getItem('lina_api_key') || "";
+        var MODEL = "gemini-1.5-flash";
+
+        var chatBox = document.getElementById('chatBox');
+        var userInput = document.getElementById('userInput');
+        var typingIndicator = document.getElementById('typingIndicator');
+        var codeEditor = document.getElementById('codeEditor');
+        var previewFrame = document.getElementById('previewFrame');
+        var chatHistory = JSON.parse(localStorage.getItem('lina_v2_chat') || '[]');
+        var pendingFileContent = null;
+        var pendingFileName = null;
+
+        marked.setOptions({
+            highlight: function(code) { return hljs.highlightAuto(code).value; },
+            breaks: true
+        });
+
+        function getApiUrl() {
+            return "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL + ":generateContent?key=" + API_KEY;
+        }
+
+        function checkStatus() {
+            var s = document.getElementById('apiStatus');
+            if (!API_KEY || API_KEY.trim() === "") {
+                s.innerText = "Kein Key!";
+                s.className = "api-status error";
+                document.getElementById('keyOverlay').classList.add('active');
+            } else {
+                s.innerText = "Bereit";
+                s.className = "api-status ok";
+                document.getElementById('keyOverlay').classList.remove('active');
+            }
+        }
+
+        document.getElementById('saveKeyBtn').onclick = function() {
+            var key = document.getElementById('keyInput').value.trim();
+            if (!key) { alert("Bitte gib einen Key ein!"); return; }
+            API_KEY = key;
+            localStorage.setItem('lina_api_key', key);
+            checkStatus();
+            initChat();
+        };
+
+        document.getElementById('resetKeyLink').onclick = function() {
+            localStorage.removeItem('lina_api_key');
+            localStorage.removeItem('lina_v2_chat');
+            API_KEY = "";
+            chatHistory = [];
+            chatBox.innerHTML = "";
+            document.getElementById('keyInput').value = "";
+            checkStatus();
+        };
+
+        function initChat() {
+            chatBox.innerHTML = "";
+            chatHistory = JSON.parse(localStorage.getItem('lina_v2_chat') || '[]');
+            if (chatHistory.length > 0) {
+                chatHistory.forEach(function(msg) { appendToUI(msg.role, msg.content, msg.fileName); });
+            } else {
+                addBotMessage("Hallo! Ich bin Lina v2. Ich kann Code anzeigen und Dateien analysieren. Was kann ich fuer dich tun?");
+            }
+        }
+
+        function appendToUI(role, content, fileName) {
+            fileName = fileName || null;
+            var div = document.createElement('div');
+            div.className = 'msg ' + role;
+            var html = role === 'bot' ? marked.parse(content) : content;
+            if (fileName) html += '<br><span class="attachment-tag">📎 ' + fileName + '</span>';
+            div.innerHTML = '<div class="' + role + '-content">' + html + '</div>';
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function sendMessage() {
+            var text = userInput.value.trim();
+            if (!text && !pendingFileContent) return;
+
+            var currentText = text || "Analysiere diese Datei.";
+            var currentFileName = pendingFileName;
+            var currentFileContent = pendingFileContent;
+
+            appendToUI('user', currentText, currentFileName);
+            chatHistory.push({ role: 'user', content: currentText, fileName: currentFileName });
+
+            userInput.value = '';
+            pendingFileContent = null;
+            pendingFileName = null;
+
+            typingIndicator.style.display = 'block';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                var response = await callAI(currentText, currentFileContent);
+                typingIndicator.style.display = 'none';
+                addBotMessage(response);
+            } catch(e) {
+                typingIndicator.style.display = 'none';
+                addBotMessage("Fehler: Verbindung zur KI fehlgeschlagen. Bitte prüfe deinen API-Key!");
+            }
+        }
+
+        async function callAI(prompt, fileData) {
+            var fullPrompt = prompt;
+            if (fileData) fullPrompt = "Hier ist der Inhalt einer Datei:\n" + fileData + "\n\nAnfrage: " + prompt;
+
+            var res = await fetch(getApiUrl(), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] })
+            });
+            var data = await res.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        function addBotMessage(text) {
+            appendToUI('bot', text);
+            chatHistory.push({ role: 'bot', content: text });
+            localStorage.setItem('lina_v2_chat', JSON.stringify(chatHistory.slice(-20)));
+        }
+
+        document.getElementById('sendBtn').onclick = sendMessage;
+        userInput.onkeypress = function(e) { if (e.key === 'Enter') sendMessage(); };
+
+        document.getElementById('clearChatBtn').onclick = function() {
+            localStorage.removeItem('lina_v2_chat');
+            chatHistory = [];
+            chatBox.innerHTML = "";
+            addBotMessage("Chat geloescht. Wie kann ich dir helfen?");
+        };
+
+        document.getElementById('attachBtn').onclick = function() {
+            document.getElementById('fileAttachment').click();
+        };
+        document.getElementById('fileAttachment').onchange = function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                pendingFileContent = ev.target.result;
+                pendingFileName = file.name;
+                addBotMessage("Datei **" + file.name + "** geladen. Was soll ich damit tun?");
+            };
+            reader.readAsText(file);
+        };
+
+        document.getElementById('toggleEditorBtn').onclick = function() {
+            document.getElementById('editorContainer').classList.toggle('open');
+        };
+        document.getElementById('applyBtn').onclick = function() {
+            var doc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+            doc.open(); doc.write(codeEditor.value); doc.close();
+        };
+
+        checkStatus();
+        if (API_KEY) { initChat(); }
+    </script>
+</body>
+</html>
