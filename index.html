@@ -35,7 +35,7 @@
             gap: 16px;
         }
         .key-box h2 { font-size: 1.1rem; color: #eeedff; }
-        .key-box p { font-size: 0.85rem; color: #8f8eb3; line-height: 1.6; }
+        .key-box p { font-size: 0.85rem; color: #8f8eb3; line-height: 1.7; }
         .key-box a { color: #10b981; }
         .key-box input {
             background: #05060c;
@@ -134,17 +134,19 @@
 
     <div class="key-overlay" id="keyOverlay">
         <div class="key-box">
-            <h2>🔑 Groq API-Key eingeben</h2>
+            <h2>🔑 OpenRouter API-Key eingeben</h2>
             <p>
-                Du brauchst einen kostenlosen Key von Groq.<br><br>
-                <strong>So geht es:</strong><br>
-                1. Geh auf <a href="https://console.groq.com" target="_blank">console.groq.com</a><br>
-                2. Konto erstellen (kostenlos)<br>
-                3. Links auf "API Keys" tippen<br>
-                4. "Create API Key" tippen<br>
-                5. Den Key hier unten einfuegen
+                Du brauchst einen kostenlosen Key von OpenRouter.<br><br>
+                <strong>So geht es (2 Minuten):</strong><br>
+                1. Geh auf <a href="https://openrouter.ai" target="_blank">openrouter.ai</a><br>
+                2. Tippe oben rechts auf <strong>"Sign In"</strong><br>
+                3. Mit Google Konto einloggen<br>
+                4. Tippe oben rechts auf dein Profilbild<br>
+                5. Tippe auf <strong>"Keys"</strong><br>
+                6. Tippe auf <strong>"Create Key"</strong><br>
+                7. Den Key hier unten einfuegen
             </p>
-            <input type="password" id="keyInput" placeholder="gsk_...">
+            <input type="password" id="keyInput" placeholder="sk-or-...">
             <button id="saveKeyBtn">Speichern und loslegen</button>
             <span class="reset-link" id="resetKeyLink">Key zuruecksetzen</span>
         </div>
@@ -156,7 +158,7 @@
     </div>
 
     <div class="status-bar">
-        <span>GitHub Modus · Groq KI</span>
+        <span>GitHub Modus · OpenRouter KI</span>
         <span style="display:flex; align-items:center; gap:8px;">
             <button class="reset-btn" id="statusResetBtn">Key aendern</button>
             <span id="apiStatus" class="api-status">Pruefe Key...</span>
@@ -186,9 +188,9 @@
     </div>
 
     <script>
-        var API_KEY = localStorage.getItem('lina_groq_key') || "";
-        var API_URL = "https://api.groq.com/openai/v1/chat/completions";
-        var MODEL = "llama3-8b-8192";
+        var API_KEY = localStorage.getItem('lina_openrouter_key') || "";
+        var API_URL = "https://openrouter.ai/api/v1/chat/completions";
+        var MODEL = "meta-llama/llama-3.1-8b-instruct:free";
 
         var chatBox = document.getElementById('chatBox');
         var userInput = document.getElementById('userInput');
@@ -218,7 +220,7 @@
         }
 
         function resetKey() {
-            localStorage.removeItem('lina_groq_key');
+            localStorage.removeItem('lina_openrouter_key');
             localStorage.removeItem('lina_v2_chat');
             API_KEY = "";
             chatHistory = [];
@@ -231,7 +233,7 @@
             var key = document.getElementById('keyInput').value.trim();
             if (!key) { alert("Bitte gib einen Key ein!"); return; }
             API_KEY = key;
-            localStorage.setItem('lina_groq_key', key);
+            localStorage.setItem('lina_openrouter_key', key);
             checkStatus();
             initChat();
         };
@@ -284,7 +286,7 @@
                 addBotMessage(response);
             } catch(e) {
                 typingIndicator.style.display = 'none';
-                addBotMessage("Fehler: Verbindung zur KI fehlgeschlagen. Tippe oben auf 'Key aendern' um einen neuen Key einzugeben.");
+                addBotMessage("Fehler: Verbindung zur KI fehlgeschlagen. Tippe oben auf 'Key aendern' um den Key neu einzugeben.");
             }
         }
 
@@ -296,7 +298,6 @@
                 { role: "system", content: "Du bist Lina, eine hilfreiche KI-Assistentin. Antworte immer auf Deutsch." }
             ];
 
-            // Letzte 10 Nachrichten als Kontext mitschicken
             var history = chatHistory.slice(-10);
             history.forEach(function(msg) {
                 if (msg.role === 'user') messages.push({ role: "user", content: msg.content });
@@ -308,15 +309,18 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + API_KEY
+                    'Authorization': 'Bearer ' + API_KEY,
+                    'HTTP-Referer': 'https://caps4476-dotcom.github.io',
+                    'X-Title': 'Lina AI'
                 },
                 body: JSON.stringify({
                     model: MODEL,
-                    messages: messages,
-                    max_tokens: 1024
+                    messages: messages
                 })
             });
+
             var data = await res.json();
+            if (data.error) throw new Error(data.error.message);
             return data.choices[0].message.content;
         }
 
