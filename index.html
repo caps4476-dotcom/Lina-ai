@@ -190,8 +190,8 @@
     <script>
         var API_KEY = localStorage.getItem('lina_openrouter_key') || "";
         var API_URL = "https://openrouter.ai/api/v1/chat/completions";
-        // FIX 1: Zuverlässigeres kostenloses Modell
-        var MODEL = "mistralai/mistral-7b-instruct:free";
+        // Automatischer Free-Router: wählt immer ein verfügbares kostenloses Modell
+        var MODEL = "openrouter/free";
 
         var chatBox = document.getElementById('chatBox');
         var userInput = document.getElementById('userInput');
