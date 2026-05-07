@@ -190,7 +190,8 @@
     <script>
         var API_KEY = localStorage.getItem('lina_openrouter_key') || "";
         var API_URL = "https://openrouter.ai/api/v1/chat/completions";
-        var MODEL = "meta-llama/llama-3.1-8b-instruct:free";
+        // FIX 1: Zuverlässigeres kostenloses Modell
+        var MODEL = "mistralai/mistral-7b-instruct:free";
 
         var chatBox = document.getElementById('chatBox');
         var userInput = document.getElementById('userInput');
@@ -201,9 +202,10 @@
         var pendingFileContent = null;
         var pendingFileName = null;
 
-        marked.setOptions({
-            highlight: function(code) { return hljs.highlightAuto(code).value; },
-            breaks: true
+        // FIX 2: marked-Konfiguration für neuere Versionen
+        marked.use({
+            breaks: true,
+            gfm: true
         });
 
         function checkStatus() {
@@ -213,7 +215,7 @@
                 s.className = "api-status error";
                 document.getElementById('keyOverlay').classList.add('active');
             } else {
-                s.innerText = "Bereit";
+                s.innerText = "Bereit ✓";
                 s.className = "api-status ok";
                 document.getElementById('keyOverlay').classList.remove('active');
             }
@@ -255,16 +257,31 @@
             fileName = fileName || null;
             var div = document.createElement('div');
             div.className = 'msg ' + role;
-            var html = role === 'bot' ? marked.parse(content) : content;
-            if (fileName) html += '<br><span class="attachment-tag">📎 ' + fileName + '</span>';
+            var html = role === 'bot' ? marked.parse(content) : escapeHtml(content);
+            if (fileName) html += '<br><span class="attachment-tag">📎 ' + escapeHtml(fileName) + '</span>';
             div.innerHTML = '<div class="' + role + '-content">' + html + '</div>';
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
+            // Syntax Highlighting nach dem Einfügen
+            div.querySelectorAll('pre code').forEach(function(block) {
+                hljs.highlightElement(block);
+            });
+        }
+
+        // FIX 3: HTML escapen für User-Nachrichten (Sicherheit)
+        function escapeHtml(text) {
+            var d = document.createElement('div');
+            d.appendChild(document.createTextNode(text));
+            return d.innerHTML;
         }
 
         async function sendMessage() {
             var text = userInput.value.trim();
             if (!text && !pendingFileContent) return;
+            if (!API_KEY) {
+                document.getElementById('keyOverlay').classList.add('active');
+                return;
+            }
 
             var currentText = text || "Analysiere diese Datei.";
             var currentFileName = pendingFileName;
@@ -286,16 +303,17 @@
                 addBotMessage(response);
             } catch(e) {
                 typingIndicator.style.display = 'none';
-                addBotMessage("Fehler: Verbindung zur KI fehlgeschlagen. Tippe oben auf 'Key aendern' um den Key neu einzugeben.");
+                // FIX 4: Genauere Fehlermeldung anzeigen
+                addBotMessage("⚠️ Fehler: " + (e.message || "Verbindung zur KI fehlgeschlagen.") + "\n\nTippe oben auf **'Key aendern'** um den Key zu pruefen.");
             }
         }
 
         async function callAI(prompt, fileData) {
             var fullPrompt = prompt;
-            if (fileData) fullPrompt = "Hier ist der Inhalt einer Datei:\n" + fileData + "\n\nAnfrage: " + prompt;
+            if (fileData) fullPrompt = "Hier ist der Inhalt einer Datei:\n\n```\n" + fileData + "\n```\n\nAnfrage: " + prompt;
 
             var messages = [
-                { role: "system", content: "Du bist Lina, eine hilfreiche KI-Assistentin. Antworte immer auf Deutsch." }
+                { role: "system", content: "Du bist Lina, eine hilfreiche KI-Assistentin. Antworte immer auf Deutsch. Sei freundlich und praezise." }
             ];
 
             var history = chatHistory.slice(-10);
@@ -310,17 +328,29 @@
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + API_KEY,
-                    'HTTP-Referer': 'https://caps4476-dotcom.github.io',
+                    // FIX 5: Referer-URL korrigiert (kein Bindestrich im GitHub Pages Subdomain-Format)
+                    'HTTP-Referer': window.location.origin || 'https://localhost',
                     'X-Title': 'Lina AI'
                 },
                 body: JSON.stringify({
                     model: MODEL,
-                    messages: messages
+                    messages: messages,
+                    max_tokens: 1500
                 })
             });
 
+            // FIX 6: HTTP-Fehler abfangen (z.B. 401 Unauthorized, 429 Rate limit)
+            if (!res.ok) {
+                var errData = await res.json().catch(function() { return {}; });
+                var errMsg = (errData.error && errData.error.message) ? errData.error.message : "HTTP " + res.status;
+                throw new Error(errMsg);
+            }
+
             var data = await res.json();
             if (data.error) throw new Error(data.error.message);
+            if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                throw new Error("Leere Antwort von der KI erhalten.");
+            }
             return data.choices[0].message.content;
         }
 
@@ -353,6 +383,8 @@
                 addBotMessage("Datei **" + file.name + "** geladen. Was soll ich damit tun?");
             };
             reader.readAsText(file);
+            // Input zurücksetzen damit dieselbe Datei nochmal gewählt werden kann
+            e.target.value = '';
         };
 
         document.getElementById('toggleEditorBtn').onclick = function() {
